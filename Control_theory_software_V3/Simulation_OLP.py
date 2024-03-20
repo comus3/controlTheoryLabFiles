@@ -46,7 +46,7 @@ def initialize_constants():
     """
     Tu = 14.0  
     Tg = 154.0  
-    Kp = 39.1  # Constant 
+    Kp = 0.391  # Constant 
     a = 13.0   # Constant a
     t1 = 58.0 # Constant t1
     t2 = 85.0  # Constant t2
