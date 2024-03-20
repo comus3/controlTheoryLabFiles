@@ -41,6 +41,52 @@ def LL_RT(MV,Kp,TLead,TLag,Ts,PV,PVInit=0,method='EBD'):
     else:
         PV.append(Kp*MV[-1])
 
+#-----------------------------------        
+
+def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD'):
+    """
+    The function "PID_RT" must be included within a "for or while loop".
+
+    The function "PID_RT" appends values to the output vectors "MV", "MVP", "MVI", "MVD", and "E"
+    using a recurrent equation.
+    """
+    # Initialisation de l'erreur (E)
+    if len(PV) == 0:
+        E.append(SP[-1] - PVInit)
+    else:
+        E.append(SP[-1] - PV[-1])
+
+    # Initialisation de l'intégrale du terme proportionnel (MVI)
+    if len(MVI) == 0:
+        MVI.append((Kc * Ts / Ti) * E[-1])
+    else:
+        MVI.append(MVI[-1] + (Kc * Ts / Ti) * E[-1])
+
+    # Initialisation du terme dérivé (MVD)
+    # Calcul et ajout de la valeur (voir slide 196)
+    if len(MVD) == 0:
+        MVD.append(((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
+    else:
+        MVD.append((((alpha * Td) / (alpha * Td + Ts)) * MVD[-1]) + ((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
+
+    # Calcul et ajout du terme proportionnel (MVP)
+    MVP.append(Kc * E[-1]) 
+
+    # Gestion du Feedforward
+    MVff = 0
+    if ManFF:
+        MVff = MVFF[-1]
+    if Man[-1]:
+        MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1] - MVff
+
+    # Réinitialisation de l'intégrateur
+    if Man[-1] == True:
+        if ManFF:
+            MVI[-1] = MVMan[-1] = MVP[-1] - MVD[-1]
+        else:
+            MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1]
+    
+    return 0
 
 
 
