@@ -33,9 +33,9 @@ def LL_RT(MV,Kp,TLead,TLag,Ts,PV,PVInit=0,method='EBD'):
             PV.append(PVInit)
         else:  # MV[k+1] is MV[-1] and MV[k] is MV[-2]
             if method == 'EBD':
-                PV.append(((1/(1+K))*PV[-1]) + ((K*Kp/(1+K))*(((1+(TLead/Ts))*MV[-1])-((TLead/Ts)*MV[-2]))))  # slide 130
+                PV.append((1/(1+K))*PV[-1] + (K*Kp/(1+K))*((1+TLead/Ts)*MV[-1] - (TLead/Ts)*MV[-2]))
             elif method == 'EFD':
-                PV.append((1-K)*PV[-1] + (K*Kp*((((TLead/Ts))*MV[-1])+((1-(TLead/Ts))*MV[-2]))))  # slide 131
+                PV.append((1-K)*PV[-1] + K*Kp((TLead/Ts)*MV[-1] + (1- TLead/Ts)*MV[-2]))
             else:
                 PV.append((1/(1+K))*PV[-1] + (K*Kp/(1+K))*MV[-1])
     else:
@@ -86,7 +86,6 @@ def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MV
         else:
             MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1]
     
-    return 0
 
 
 
