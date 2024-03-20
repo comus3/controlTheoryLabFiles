@@ -15,6 +15,7 @@ def plot_data(FOPDT,MVm,PVm,tm,TSim,):
     FOPDT_P_B1 = FOPDT(MVm, Kp, T_B1, theta_B1, Ts)
     FOPDT_P_B2 = FOPDT(MVm, Kp, T_B2, theta_B2, Ts)
     FOPDT_P_T = FOPDT(MVm, Kp, T_T, theta_T, Ts)
+    #FOPDT_P_VDR = FOPDT(MVm, Kp, T1_VDG, T2_VDG, theta_VDG)
 
     plt.figure(figsize = (15,9))
 
