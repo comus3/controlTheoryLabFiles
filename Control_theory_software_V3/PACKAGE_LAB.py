@@ -74,58 +74,62 @@ def LL_RT(MV, Kp, TLead, TLag, Ts, PV, PVInit=0, method='EBD'):
 # -----------------------------------
 
 
-def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, methodI='EBD', methodD='EBD') :
-    """
-    The function "PID_RT" must be included within a "for or while loop".
+def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD-EBD'):
+    # Séparation de la chaîne de caractères method en EBD et EBD
+    method_parts = method.split('-')
+    # Accès aux deux parties séparées
+    method_part1 = method_parts[0]
+    method_part2 = method_parts[1]
 
-    The function "PID_RT" appends values to the output vectors "MV", "MVP", "MVI", "MVD", and "E"
-    using a recurrent equation.
-    """
+    # Error
     if len(PV) == 0:
-        E.append(SP[-1] - PVInit)
+        E.append(SP[-1]-PVInit)
     else:
-        E.append(SP[-1] - PV[-1])
+        E.append(SP[-1]-PV[-1])
 
     # Proportionnal action
     MVP.append(Kc*E[-1])
 
     # Integral action
     if len(MVI) == 0:
-        # Start with EBD because E[-2] does not exist
         MVI.append((Kc*Ts/Ti)*E[-1])
     else:
-        if methodI == 'TRAP':
-            MVI.append(MVI[-1] + (Kc*Ts/Ti)*(E[-1] + E[-2])/2)
-        else:  # EBD
-            MVI.append(MVI[-1] + (Kc*Ts/Ti)*E[-1])
+        if method_part1 == 'EBD':
+            MVI.append(MVI[-1]+(Kc*Ts/Ti)*E[-1])
 
     # Derivative action
     Tfd = alpha*Td
     if len(MVD) == 0:
-        MVD.append((Kc*Td/(Tfd + Ts))*E[-1])  # E[-2] = 0
+        MVD.append(0)
     else:
-        if methodD == 'TRAP':
-            MVD.append((Tfd - Ts/2)/(Tfd + Ts/2) *
-                       MVD[-1] + (Kc*Td/(Tfd + Ts/2))*(E[-1] - E[-2]))
-        else:  # EBD
-            MVD.append(Tfd/(Tfd + Ts)*MVD[-1] +
-                       (Kc*Td/(Tfd + Ts))*(E[-1] - E[-2]))
+        if method_part2 == 'EBD':
+            MVD.append((Tfd/(Tfd+Ts))*MVD[-1]+((Kc*Td)/(Tfd+Ts))*(E[-1]-E[-2]))
 
-    # Integrator Reset
+    # Feedforward Activation
+    if ManFF:
+        MVFFI = MVFF[-1]
+    else:
+        MVFFI = 0
+
+    # MVMan.append(0)
+
+    # Manual Mode
     if Man[-1] == True:
-        if ManFF == True:
-            MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1]
+        if ManFF == False:
+            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]
         else:
-            MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1] - MVFF[-1]
+            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]-MVFFI
 
-    # Saturation Integrator Reset
-    if MVP[-1] + MVI[-1] + MVD[-1] + MVFF[-1] > MVMax:
-        MVI[-1] = MVMax - MVP[-1] - MVD[-1] - MVFF[-1]
-    elif MVP[-1] + MVI[-1] + MVD[-1] + MVFF[-1] < MVMin:
-        MVI[-1] = MVMin - MVP[-1] - MVD[-1] - MVFF[-1]
+    # Saturation of MV
+    MV_SUM = MVP[-1]+MVI[-1]+MVD[-1]+MVFFI
+    if MV_SUM > MVMax:
+        MVI[-1] = MVMax-MVP[-1]-MVD[-1]-MVFFI
+        MV_SUM = MVMax
+    if MV_SUM < MVMin:
+        MVI[-1] = MVMin-MVP[-1]-MVD[-1]-MVFFI
+        MV_SUM = MVMin
 
-    # Resulting MV
-    MV.append(MVP[-1] + MVI[-1] + MVD[-1] + MVFF[-1])
+    MV.append(MV_SUM)
 
 
 # -----------------------------------
