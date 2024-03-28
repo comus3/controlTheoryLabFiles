@@ -8,30 +8,24 @@ from IPython.display import display, clear_output
 # -----------------------------------
 
 def IMC_TUNING(Kp, T1, T2, theta, gamma, method='FOPDT'):
-
+    
     Tc = gamma * T1
+    
     if method == 'FOPDT':
-
         Kc = (((T1 + (theta / 2)) / (Tc + (theta / 2)))) / Kp
         Ti = T1 + (theta / 2)
         Td = (T1 * theta) / ((2 * T1) + theta)
-
-        return Kc, Ti, Td
-
-    if method == 'SOPDT':
-
+    elif method == 'SOPDT':
         Kc = ((T1 + T2) / (Tc + theta)) / Kp
         Ti = T1 + T2
         Td = T1 * T2 / (T1 + T2)
-
-        return Kc, Ti, Td
-
     else:
+        # Par défaut, on utilisez FOPDT
         Kc = (((T1 + (theta / 2)) / (Tc + (theta / 2)))) / Kp
         Ti = T1 + (theta / 2)
         Td = (T1 * theta) / ((2 * T1) + theta)
+    return Kc, Ti, Td
 
-        return Kc, Ti, Td
 
 
 # -----------------------------------
@@ -70,67 +64,78 @@ def LL_RT(MV, Kp, TLead, TLag, Ts, MVFF, PVInit=0, method='EBD'):
         MVFF.append(Kp*MV[-1])
 
 # -----------------------------------
+class Controller:
+    def __init__(self, parameters):
+        self.parameters = parameters
 
+    def set_parameters(self, parameters):
+        self.parameters = parameters
 
-def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD-EBD'):
+    def get_parameters(self):
+        return self.parameters
+
+    def calculate_output(self, error, pre_error, integral):
+        Kp = self.parameters.get('Kp', 0)
+        Ki = self.parameters.get('Ki', 0)
+        Kd = self.parameters.get('Kd', 0)
+
+        # intégral et dérivé
+        proportional_term = Kp * error
+        integral_term = Ki * integral
+        derivative_term = Kd * (error - pre_error)
+
+        # Calcul de la sortie du contrôleur
+        output = proportional_term + integral_term + derivative_term
+
+        return output
+
+#------------
+
+def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD'):
     """
-    temp
-    """
-    # Séparation de la chaîne de caractères method en EBD et EBD
-    method_parts = method.split('-')
-    # Accès aux deux parties séparées
-    method_part1 = method_parts[0]
-    method_part2 = method_parts[1]
+    The function "PID_RT" must be included within a "for or while loop".
 
-    # Error
+    The function "PID_RT" appends values to the output vectors "MV", "MVP", "MVI", "MVD", and "E"
+    using a recurrent equation.
+    """
+    # Initialisation de l'erreur (E)
     if len(PV) == 0:
-        E.append(SP[-1]-PVInit)
+        E.append(SP[-1] - PVInit)
     else:
-        E.append(SP[-1]-PV[-1])
+        E.append(SP[-1] - PV[-1])
 
-    # Proportionnal action
-    MVP.append(Kc*E[-1])
-
-    # Integral action
+    # Initialisation de l'intégrale du terme proportionnel (MVI)
     if len(MVI) == 0:
-        MVI.append((Kc*Ts/Ti)*E[-1])
+        MVI.append((Kc * Ts / Ti) * E[-1])
     else:
-        if method_part1 == 'EBD':
-            MVI.append(MVI[-1]+(Kc*Ts/Ti)*E[-1])
+        MVI.append(MVI[-1] + (Kc * Ts / Ti) * E[-1])
 
-    # Derivative action
-    Tfd = alpha*Td
+    # Initialisation du terme dérivé (MVD)
+    # Calcul et ajout de la valeur (voir slide 196)
     if len(MVD) == 0:
-        MVD.append(0)
+        MVD.append(((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
     else:
-        if method_part2 == 'EBD':
-            MVD.append((Tfd/(Tfd+Ts))*MVD[-1]+((Kc*Td)/(Tfd+Ts))*(E[-1]-E[-2]))
+        MVD.append((((alpha * Td) / (alpha * Td + Ts)) * MVD[-1]) + ((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
 
-    # Feedforward Activation
+    # Calcul et ajout du terme proportionnel (MVP)
+    MVP.append(Kc * E[-1]) 
+
+    # Gestion du Feedforward
+    MVff = 0
     if ManFF:
-        MVFFI = MVFF[-1]
-    else:
-        MVFFI = 0
+        MVff = MVFF[-1]
+    if Man[-1]:
+        MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1] - MVff
 
-    # MVMan.append(0)
-
-    # Manual Mode
+    # Réinitialisation de l'intégrateur
     if Man[-1] == True:
-        if ManFF == False:
-            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]
+        if ManFF:
+            MVI[-1] = MVMan[-1] = MVP[-1] - MVD[-1]
         else:
-            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]-MVFFI
+            MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1]
+    
+    return 0
 
-    # Saturation of MV
-    MV_SUM = MVP[-1]+MVI[-1]+MVD[-1]+MVFFI
-    if MV_SUM > MVMax:
-        MVI[-1] = MVMax-MVP[-1]-MVD[-1]-MVFFI
-        MV_SUM = MVMax
-    if MV_SUM < MVMin:
-        MVI[-1] = MVMin-MVP[-1]-MVD[-1]-MVFFI
-        MV_SUM = MVMin
-
-    MV.append(MV_SUM)
 
 
 # -----------------------------------
