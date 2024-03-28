@@ -58,8 +58,8 @@ def LL_RT(MV, Kp, TLead, TLag, Ts, MVFF, PVInit=0, method='EBD'):
     if (TLead!= 0 and TLag != 0):
         K = Ts/TLag
         if len(MVFF) == 0:
-            MVFF.append(MVFF)
-        else:
+            MVFF.append(PVInit)
+        else: # MV[k+1] is MV[-1] and MV[k] is MV[-2]
             if method == 'EBD':
                 MVFF.append(((1/(1+K))*MVFF[-1]) + ((K*Kp/(1+K))*(((1+(TLead/Ts))*MV[-1])-((TLead/Ts)*MV[-2]))))  #slide 130
             elif method == 'EFD':
