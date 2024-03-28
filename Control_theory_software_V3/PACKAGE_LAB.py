@@ -35,7 +35,7 @@ def IMC_TUNING(Kp, T1, T2, theta, gamma, method='FOPDT'):
 
 
 # -----------------------------------
-def LL_RT(MV, Kp, TLead, TLag, Ts, PV, PVInit=0, method='EBD'):
+def LL_RT(MV, Kp, TLead, TLag, Ts, MVFF, PVInit=0, method='EBD'):
     """
     The function "LL_RT" needs to be included in a "for or while loop".
 
@@ -55,26 +55,27 @@ def LL_RT(MV, Kp, TLead, TLag, Ts, PV, PVInit=0, method='EBD'):
     The function "LL_RT" appends a value to the output vector "PV".
     The appended value is obtained from a recurrent equation that depends on the discretisation method.
     """
-    if (TLead != 0 and TLag != 0):
-        K = Ts / TLag
-        if len(PV) == 0:
-            PV.append(PVInit)
-        else:  # MV[k+1] is MV[-1] and MV[k] is MV[-2]
+    if (TLead!= 0 and TLag != 0):
+        K = Ts/TLag
+        if len(MVFF) == 0:
+            MVFF.append(MVFF)
+        else:
             if method == 'EBD':
-                PV.append((1/(1+K))*PV[-1] + (K*Kp/(1+K))
-                          * ((1+TLead/Ts)*MV[-1] - (TLead/Ts)*MV[-2]))
+                MVFF.append(((1/(1+K))*MVFF[-1]) + ((K*Kp/(1+K))*(((1+(TLead/Ts))*MV[-1])-((TLead/Ts)*MV[-2]))))  #slide 130
             elif method == 'EFD':
-                PV.append((1-K)*PV[-1] + K*Kp((TLead/Ts) *
-                          MV[-1] + (1 - TLead/Ts)*MV[-2]))
+                MVFF.append((1-K)*MVFF[-1] + (K*Kp*((((TLead/Ts))*MV[-1])+((1-(TLead/Ts))*MV[-2]))))  #slide 131      
             else:
-                PV.append((1/(1+K))*PV[-1] + (K*Kp/(1+K))*MV[-1])
+                MVFF.append((1/(1+K))*MVFF[-1] + (K*Kp/(1+K))*MV[-1])
     else:
-        PV.append(Kp*MV[-1])
+        MVFF.append(Kp*MV[-1])
 
 # -----------------------------------
 
 
 def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD-EBD'):
+    """
+    temp
+    """
     # Séparation de la chaîne de caractères method en EBD et EBD
     method_parts = method.split('-')
     # Accès aux deux parties séparées
