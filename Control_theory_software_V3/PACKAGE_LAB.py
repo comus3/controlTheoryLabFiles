@@ -89,53 +89,69 @@ class Controller:
 
         return output
 
-#------------
-
-def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD'):
+def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD-EBD'):
     """
-    The function "PID_RT" must be included within a "for or while loop".
-
-    The function "PID_RT" appends values to the output vectors "MV", "MVP", "MVI", "MVD", and "E"
-    using a recurrent equation.
+    temp
     """
-    # Initialisation de l'erreur (E)
+    # Séparation de la chaîne de caractères method en EBD et EBD
+    method_parts = method.split('-')
+    # Accès aux deux parties séparées
+    method_part1 = method_parts[0]
+    method_part2 = method_parts[1]
+
+    # Error
     if len(PV) == 0:
-        E.append(SP[-1] - PVInit)
+        E.append(SP[-1]-PVInit)
     else:
-        E.append(SP[-1] - PV[-1])
+        E.append(SP[-1]-PV[-1])
 
-    # Initialisation de l'intégrale du terme proportionnel (MVI)
+    # Proportionnal action
+    MVP.append(Kc*E[-1])
+
+    # Integral action
     if len(MVI) == 0:
-        MVI.append((Kc * Ts / Ti) * E[-1])
+        MVI.append((Kc*Ts/Ti)*E[-1])
     else:
-        MVI.append(MVI[-1] + (Kc * Ts / Ti) * E[-1])
+        if method_part1 == 'EBD':
+            MVI.append(MVI[-1]+(Kc*Ts/Ti)*E[-1])
 
-    # Initialisation du terme dérivé (MVD)
-    # Calcul et ajout de la valeur (voir slide 196)
+    # Derivative action
+    Tfd = alpha*Td
     if len(MVD) == 0:
-        MVD.append(((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
+        MVD.append(0)
     else:
-        MVD.append((((alpha * Td) / (alpha * Td + Ts)) * MVD[-1]) + ((Kc * Td) / ((alpha * Td) + Ts)) * (E[-1] - E[-2]))
+        if method_part2 == 'EBD':
+            MVD.append((Tfd/(Tfd+Ts))*MVD[-1]+((Kc*Td)/(Tfd+Ts))*(E[-1]-E[-2]))
 
-    # Calcul et ajout du terme proportionnel (MVP)
-    MVP.append(Kc * E[-1]) 
-
-    # Gestion du Feedforward
-    MVff = 0
+    # Feedforward Activation
     if ManFF:
-        MVff = MVFF[-1]
-    if Man[-1]:
-        MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1] - MVff
+        MVFFI = MVFF[-1]
+    else:
+        MVFFI = 0
 
-    # Réinitialisation de l'intégrateur
+    # MVMan.append(0)
+
+    # Manual Mode
     if Man[-1] == True:
-        if ManFF:
-            MVI[-1] = MVMan[-1] = MVP[-1] - MVD[-1]
+        if ManFF == False:
+            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]
         else:
-            MVI[-1] = MVMan[-1] - MVP[-1] - MVD[-1]
-    
-    return 0
+            MVI[-1] = MVMan[-1]-MVP[-1]-MVD[-1]-MVFFI
 
+    # Saturation of MV
+    MV_SUM = MVP[-1]+MVI[-1]+MVD[-1]+MVFFI
+    if MV_SUM > MVMax:
+        MVI[-1] = MVMax-MVP[-1]-MVD[-1]-MVFFI
+        MV_SUM = MVMax
+    if MV_SUM < MVMin:
+        MVI[-1] = MVMin-MVP[-1]-MVD[-1]-MVFFI
+        MV_SUM = MVMin
+
+    MV.append(MV_SUM)
+
+
+# -----------------------------------
+	
 
 
 # -----------------------------------
