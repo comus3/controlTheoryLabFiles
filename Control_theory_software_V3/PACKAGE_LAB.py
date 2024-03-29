@@ -8,7 +8,16 @@ from IPython.display import display, clear_output
 # -----------------------------------
 
 def IMC_TUNING(Kp, T1, T2, theta, gamma, method='FOPDT'):
+    """
+    The function IMC tuning returns the IMC controller parameters Kc, Ti and Td for a FOPDT or SOPDT process model.
     
+    :Kp: process gain
+    :T1: first (or main) lag time constant [s]
+    :T2: second lag time constant [s]
+    :theta: delay [s]
+    :gamma: IMC tuning parameter
+    :method: process model (optional: default value is 'FOPDT')
+    """
     Tc = gamma * T1
     
     if method == 'FOPDT':
