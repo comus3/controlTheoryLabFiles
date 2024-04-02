@@ -231,7 +231,34 @@ class Controller:
 
 def PID_RT(SP, PV, Man, MVMan, MVFF, Kc, Ti, Td, alpha, Ts, MVMin, MVMax, MV, MVP, MVI, MVD, E, ManFF=False, PVInit=0, method='EBD-EBD'):
     """
-    temp
+    Applies Proportional Integral Derivative (PID) control to regulate a process variable.
+
+    :param SP: Setpoint vector
+    :param PV: Process variable vector
+    :param Man: Manual mode vector
+    :param MVMan: Manual mode input vector
+    :param MVFF: Feedforward input vector
+    :param Kc: Proportional gain
+    :param Ti: Integral time constant
+    :param Td: Derivative time constant
+    :param alpha: Derivative filter coefficient
+    :param Ts: Sampling period
+    :param MVMin: Minimum manipulated variable (MV) value
+    :param MVMax: Maximum MV value
+    :param MV: MV vector
+    :param MVP: Proportional action vector
+    :param MVI: Integral action vector
+    :param MVD: Derivative action vector
+    :param E: Error vector
+    :param ManFF: Boolean indicating whether feedforward is activated in manual mode (default: False)
+    :param PVInit: Initial value of the process variable (default: 0)
+    :param method: Discretization method for integral and derivative actions (default: 'EBD-EBD')
+        - First part: Discretization method for integral action {'EBD', 'EFD', 'TRAP'}
+        - Second part: Discretization method for derivative action {'EBD', 'EFD', 'TRAP'}
+
+    The function "PID_RT" computes the next manipulated variable (MV) value based on the given inputs.
+    It implements a PID controller with configurable discretization methods for integral and derivative actions.
+
     """
     # Séparation de la chaîne de caractères method en EBD et EBD
     method_parts = method.split('-')
