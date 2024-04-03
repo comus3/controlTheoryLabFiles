@@ -1,11 +1,55 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
-from package_DBR import *
 from IPython.display import display, clear_output
 
 # -----------------------------------
 
+def Bode(P, omega, Show=True):
+    """
+    Generate the Bode diagram of the process P.
+
+    :P: Process object.
+    :omega: Frequency vector (rad/s).
+    :Show: Boolean value (optional: default value = True).
+        If Show == True, the Bode diagram is shown.
+        If Show == False, the Bode diagram is NOT shown and the complex vector Ps is returned.
+
+    Returns the magnitude and phase of the transfer function.
+    """
+
+    s = 1j * omega
+
+    Ptheta = np.exp(-P.parameters['theta'] * s)
+    PGain = P.parameters['Kp'] * np.ones_like(Ptheta)
+    PLag1 = 1 / (P.parameters['Tlag1'] * s + 1)
+    PLag2 = 1 / (P.parameters['Tlag2'] * s + 1)
+    PLead1 = P.parameters.get('Tlead1', 1) * s + 1
+    PLead2 = P.parameters.get('Tlead2', 1) * s + 1
+
+    Ps = Ptheta * PGain * PLag1 * PLag2 * PLead1 * PLead2
+
+    if Show:
+        # Calculate magnitude and phase
+        magnitude = 20 * np.log10(np.abs(Ps))
+        phase = np.angle(Ps, deg=True)
+
+        # Plot Bode diagram
+        plt.figure()
+        plt.subplot(2, 1, 1)
+        plt.semilogx(omega, magnitude)
+        plt.ylabel('Magnitude (dB)')
+        plt.grid(True)
+        plt.title('Bode Diagram')
+        plt.subplot(2, 1, 2)
+        plt.semilogx(omega, phase)
+        plt.xlabel('Frequency (rad/s)')
+        plt.ylabel('Phase (degrees)')
+        plt.grid(True)
+        plt.show()
+
+    else:
+        return Ps
 
 def stability_margin(process_obj, controller_obj, omega_freq):
     """
@@ -30,44 +74,35 @@ def stability_margin(process_obj, controller_obj, omega_freq):
     # Calculate overall loop gain
     Ls *= Cs
 
-    print("Loop Gain Ls:", Ls)  
-
     # Gain and Phase Calculations
     gain_values = 20 * np.log10(np.abs(Ls))
-    phase_values = (180 / np.pi) * np.unwrap(np.angle(Ls))
+    phase_values = (180 / np.pi) * np.angle(Ls)
 
     # Finding Gain and Phase Margins
-    x_gain_margin, y_gain_margin, crossover_freq, phase_margin = None, None, None, None
-    x_phase_margin, y_phase_margin, unity_gain_freq, gain_margin = None, None, None, None
+    gain_margin_freq = omega_freq[np.argmax(gain_values < 0)]
+    phase_margin_freq = omega_freq[np.argmax(phase_values < -180)]
 
-    for i in range(len(gain_values) - 1):
-        if gain_values[i] > 0 and gain_values[i + 1] < 0:
-            x_gain_margin = i
-            y_gain_margin = gain_values[i]
-            crossover_freq = round(omega_freq[i], 2)
-            phase_margin = round(abs(phase_values[i] + 180), 2)
-            break
+    # Calculate gain and phase margins
+    x_gain_margin = np.argmax(omega_freq > gain_margin_freq)
+    y_gain_margin = gain_values[x_gain_margin]
+    crossover_freq = gain_margin_freq
+    phase_margin = 180 + phase_values[np.argmax(omega_freq > phase_margin_freq)]
+    x_phase_margin = np.argmax(omega_freq > phase_margin_freq)
+    y_phase_margin = phase_values[x_phase_margin]
+    unity_gain_freq = crossover_freq
+    gain_margin = abs(gain_values[x_phase_margin])
 
-    for i in range(len(phase_values) - 1):
-        if phase_values[i] > -180 and phase_values[i + 1] < -180:
-            x_phase_margin = i
-            y_phase_margin = phase_values[i]
-            unity_gain_freq = round(omega_freq[i], 2)
-            gain_margin = round(abs(gain_values[i]), 2)
-            break
+    return x_gain_margin, y_gain_margin, crossover_freq, phase_margin, x_phase_margin, y_phase_margin, unity_gain_freq, gain_margin, gain_values, phase_values
 
-    return x_gain_margin, y_gain_margin, crossover_freq, phase_margin, x_phase_margin, y_phase_margin, unity_gain_freq, gain_margin
-
-
-
-# -----------------------------------
-def plot_bode_diagrams(process_obj, controller_obj, omega_freq, x_gain_margin, y_gain_margin, crossover_freq, phase_margin, x_phase_margin, y_phase_margin, unity_gain_freq, gain_margin):
+def plot_bode_diagrams(process_obj, controller_obj, omega_freq, gain_values, phase_values, x_gain_margin, y_gain_margin, crossover_freq, phase_margin, x_phase_margin, y_phase_margin, unity_gain_freq, gain_margin):
     """
     Plot Bode diagrams using the stability margin results.
 
     :process_obj: Process object.
     :controller_obj: Controller object.
     :omega_freq: Frequency vector (rad/s).
+    :gain_values: Gain values calculated from stability margin.
+    :phase_values: Phase values calculated from stability margin.
     :x_gain_margin: Index of gain margin.
     :y_gain_margin: Gain margin value.
     :crossover_freq: Crossover frequency.
@@ -77,49 +112,37 @@ def plot_bode_diagrams(process_obj, controller_obj, omega_freq, x_gain_margin, y
     :unity_gain_freq: Unity gain frequency.
     :gain_margin: Gain margin value.
     """
-    # Generate the loop gain using the Bode method
-    Ls = Bode(process_obj, omega_freq, Show=False)
-
-    # Controller Transfer Function Components
-    s = 1j * omega_freq
-    integration_action = 1 / (controller_obj.parameters['Ti'] * s)
-    Tfd = controller_obj.parameters['Td'] * controller_obj.parameters['alpha']
-    derivative_action = controller_obj.parameters['Td'] * s / (1 + Tfd * s)
-    Cs = controller_obj.parameters['Kc'] * (1 + integration_action + derivative_action)
-
-    # Calculate overall loop gain
-    Ls *= Cs
-
     # Generate Bode plots
     fig, (ax_gain, ax_phase) = plt.subplots(2, 1)
     fig.set_figheight(12)
     fig.set_figwidth(22)
 
     # Gain part
-    ax_gain.semilogx(omega_freq, 20 * np.log10(np.abs(Ls)), label=r'$L(s)$')
-    gain_min = np.min(20 * np.log10(np.abs(Ls) / 5))
-    gain_max = np.max(20 * np.log10(np.abs(Ls) * 5))
-    ax_gain.vlines(unity_gain_freq, gain_min, 0, color='r', linestyle='--', label='Unity Gain Frequency')
-    ax_gain.vlines(crossover_freq, gain_min, gain_values[x_phase_margin], color='b', linestyle='--', label='Crossover Frequency')
+    ax_gain.semilogx(omega_freq, gain_values, label='L(s)')
+    gain_min = np.min(gain_values)
+    gain_max = np.max(gain_values)
+    #ax_gain.vlines(unity_gain_freq, gain_min, 0, color='r', linestyle='--', label='Unity Gain Frequency')
+    #ax_gain.vlines(crossover_freq, gain_min, gain_values[x_phase_margin], color='b', linestyle='--', label='Crossover Frequency')
     ax_gain.set_xlim([np.min(omega_freq), np.max(omega_freq)])
     ax_gain.set_ylim([gain_min, gain_max])
-    ax_gain.set_ylabel('Amplitude $|L(s)|$ [dB]')
-    ax_gain.set_title('Bode plot of $L(s)$ with Stability Margins')
+    ax_gain.set_ylabel('Amplitude |L(s)| [dB]')
+    ax_gain.set_title('Bode plot of L(s) with Stability Margins')
     ax_gain.legend(loc='best')
 
     # Phase part
-    ax_phase.semilogx(omega_freq, (180 / np.pi) * np.unwrap(np.angle(Ls)), label=r'$L(s)$')
-    ax_phase.vlines(unity_gain_freq, -180, phase_values[x_gain_margin], color='r', linestyle='--', label='Unity Gain Frequency')
-    ax_phase.vlines(crossover_freq, -180, phase_values[x_gain_margin], color='b', linestyle='--', label='Crossover Frequency')
+    ax_phase.semilogx(omega_freq, phase_values, label='L(s)')
+    #ax_phase.vlines(unity_gain_freq, -180, phase_values[x_gain_margin], color='r', linestyle='--', label='Unity Gain Frequency')
+    #ax_phase.vlines(crossover_freq, -180, phase_values[x_gain_margin], color='b', linestyle='--', label='Crossover Frequency')
     ax_phase.set_xlim([np.min(omega_freq), np.max(omega_freq)])
-    ph_min = np.min((180 / np.pi) * np.unwrap(np.angle(Ls))) - 10
-    ph_max = np.max((180 / np.pi) * np.unwrap(np.angle(Ls))) + 10
+    ph_min = np.min(phase_values) - 10
+    ph_max = np.max(phase_values) + 10
     ax_phase.set_ylim([np.max([ph_min, -200]), ph_max])
-    ax_phase.set_xlabel(r'Frequency $\omega$ [rad/s]')
-    ax_phase.set_ylabel('Phase $\angle L(s)$ [°]')
+    ax_phase.set_xlabel('Frequency omega [rad/s]')
+    ax_phase.set_ylabel('Phase /angle L(s) [°]')
     ax_phase.legend(loc='best')
 
     plt.show()
+
 
 
 # -----------------------------------
